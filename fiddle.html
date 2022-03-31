@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+
+<div style = "display: grid; width: 100%; justify-content: center; grid-template: 'a b c' 30px 'd e g' 30px; column-width: 200px; column-gap: 30px; row-gap: 20px">
+<p>Question 1</p>
+<p>Question 2</p>
+<p>Question 3</p>
+<select name="Q1" id="Q1">
+    <option value="1" selected >Answer 1</option>
+    <option value="2">Answer 2</option>
+    <option value="3">Answer 3</option>
+    <option value="4">Answer 4</option>
+</select>
+<select name="Q2" id="Q2">
+    <option value="1">Answer 1</option>
+    <option value="2" selected>Answer 2</option>
+    <option value="3">Answer 3</option>
+    <option value="4">Answer 4</option>
+</select>
+<select name="Q3" id="Q3">
+    <option value="1">Answer 1</option>
+    <option value="2">Answer 2</option>
+    <option value="3" selected >Answer 3</option>
+    <option value="4">Answer 4</option>
+</select>
+</div>
+
+
+<div id="vis" style = "display:grid; justify-content: center"></div>
+
+<script>
+    var width = 800,
+    height = 800,
+    radius = Math.min(width, height) / 3,
+    innerRadius = 0.3 * radius;
+
+var pie = d3.layout.pie()
+    .sort(null)
+    .value(function(d) { return d.width; });
+
+/* var tip = d3.tip()
+  .attr('class', 'd3-tip')
+  .offset([0, 0])
+  .html(function(d) {
+    return d.data.label + ": <span style='color:orangered'>" + d.data.score + "</span>";
+  }); */
+
+var arc = d3.svg.arc()
+  .innerRadius(innerRadius)
+  .outerRadius(function (d) { 
+    return (radius - innerRadius) * (d.data.score / 100.0) + innerRadius; 
+  });
+
+var outlineArc = d3.svg.arc()
+        .innerRadius(innerRadius)
+        .outerRadius(radius);
+
+var svg = d3.select("#vis").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .append("g")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2.2 + ")");
+
+/* svg.call(tip); */
+
+d3.csv('aster_data.csv', function(error, data) {
+
+  data.forEach(function(d) {
+    d.id     =  d.id;
+    d.order  = +d.order;
+    d.color  =  d.color;
+    d.weight = +d.weight;
+    d.score  = +d.score;
+    d.width  = +d.weight;
+    d.label  =  d.label;
+  });
+  
+  function draw(){
+    var path = svg.selectAll(".solidArc")
+        .data(pie(data))
+        .enter().append("path")
+        .attr("fill", function(d) { return d.data.color; })
+        .attr("class", "solidArc")
+        .attr("class", "remove_on_change")
+        .attr("stroke", "gray")
+        .attr("d", arc)
+/*         .on('mouseover', tip.show)
+        .on('mouseout', tip.hide); */
+
+    var outerPath = svg.selectAll(".outlineArc")
+        .data(pie(data))
+        .enter().append("path")
+        .attr("fill", function(d) { return d.data.color; })
+        .style("opacity","0.4")
+        .attr("stroke", "gray")
+        .attr("class", "outlineArc")
+        .attr("d", outlineArc);  
+
+
+    // calculate the weighted mean score
+    var score = 
+        data.reduce(function(a, b) {
+        //console.log('a:' + a + ', b.score: ' + b.score + ', b.weight: ' + b.weight);
+        return a + (b.score * b.weight); 
+        }, 0) / 
+        data.reduce(function(a, b) { 
+        return a + b.weight; 
+        }, 0);
+
+    svg.append("svg:text")
+        .attr("class", "aster-score")
+        .attr("class", "remove_on_change")
+        .attr("dy", ".35em")
+        .attr("text-anchor", "middle") // text-align: right
+        .text(Math.round(score));
+    
+    svg
+        .selectAll('mySlices')
+        .data(pie(data))
+        .enter()
+        .append('text')
+        .text(function(d){ return d.data.score/10})
+        .attr("transform", function(d) { 
+            console.log(arc.centroid(d))
+            cent = arc.centroid(d)
+            console.log(cent)
+            console.log(cent[0])
+            return "translate(" + (cent[0]*0.95) + "," + (cent[1] * 0.95) + ")";  })
+        .attr("class", "remove_on_change")
+        .style("text-anchor", "middle")
+        .style("font-size", 17)
+
+    svg
+        .selectAll('solidArc')
+        .data(pie(data))
+        .enter()
+        .append('text')
+        .text(function(d){ return d.data.label})
+        .attr("transform", function(d) { 
+            console.log(outlineArc.centroid(d))
+            cent = outlineArc.centroid(d)
+            console.log(cent)
+            console.log(cent[0])
+            return "translate(" + (cent[0]*1.85) + "," + (cent[1] * 1.85) + ")";  })
+        .style("text-anchor", "middle")
+        .style("font-size", 17)
+
+    }
+
+  draw()
+
+ /* UPDATE */
+
+ d3.select("#Q1")
+    .on('change', function(){
+        d3.selectAll(".remove_on_change")
+            .remove()
+        
+        data[0].score = d3.select("#Q1").node().value*10;
+
+        console.log(data)
+
+        draw()
+        svg.call(tip);
+    })
+
+  d3.select("#Q2")
+    .on('click', function(){
+        d3.selectAll(".remove_on_change")
+            .remove()
+        
+        d3.selectAll("text")
+            .remove()
+        
+        data[1].score = d3.select("#Q2").node().value*10;
+
+        console.log(data)
+
+        draw()
+        svg.call(tip);
+    })
+
+  d3.select("#Q3")
+    .on('click', function(){
+        d3.selectAll(".remove_on_change")
+            .remove()
+        
+        d3.selectAll("text")
+            .remove()
+        
+        data[2].score = d3.select("#Q3").node().value*10;
+
+        console.log(data)
+
+        draw()
+        svg.call(tip);
+    })
+
+});
+
+</script>
+
+</body>
+</html>
